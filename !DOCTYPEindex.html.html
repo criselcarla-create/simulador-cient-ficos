@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Ecotoxicológico del Río Uruguay</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --border: #334155;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+    
+    header { background: #0284c7; padding: 1rem; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+    header h1 { font-size: 1.4rem; font-weight: 700; color: white; }
+    header p { font-size: 0.85rem; opacity: 0.9; color: #e0f2fe; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 1rem; width: 100%; flex: 1; }
+
+    /* PANTALLA BIENVENIDA */
+    #welcome-screen { text-align: center; max-width: 550px; margin: 3rem auto; background: var(--card-bg); padding: 2rem; border-radius: 12px; border: 1px solid var(--border); }
+    .input-group { margin: 1.5rem 0; text-align: left; }
+    .input-group label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #94a3b8; }
+    .input-group input { width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border); background: #0f172a; color: white; font-size: 1rem; }
+    
+    .btn { background: var(--accent); color: #0f172a; font-weight: bold; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; transition: 0.2s; width: 100%; font-size: 1rem; }
+    .btn:hover { background: #7dd3fc; }
+
+    /* DASHBOARD Y MAPA */
+    #main-dashboard { display: none; }
+    .status-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .stat-card { background: var(--card-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+    .stat-card h3 { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; }
+    .stat-card p { font-size: 1.5rem; font-weight: bold; color: var(--accent); margin-top: 0.25rem; }
+
+    .layout-grid { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; }
+    @media (max-width: 850px) { .layout-grid { grid-template-columns: 1fr; } }
+
+    .map-container { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 1rem; position: relative; display: flex; flex-direction: column; align-items: center; }
+    .svg-map { width: 100%; max-width: 500px; height: auto; background: #0369a1; border-radius: 8px; }
+
+    /* ESTRELLAS ESTACIONES */
+    .station-star { cursor: pointer; transition: transform 0.2s, fill 0.3s; stroke: #ffffff; stroke-width: 1.5; }
+    .station-star:hover { transform: scale(1.3); transform-origin: center; }
+
+    .legend-card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 1rem; }
+    .legend-card h4 { margin-bottom: 0.75rem; font-size: 0.95rem; color: #e2e8f0; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    .legend-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.85rem; }
+    .color-box { width: 16px; height: 16px; border-radius: 3px; display: inline-block; margin-right: 8px; }
+
+    /* MODAL */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; padding: 1rem; }
+    .modal-content { background: var(--card-bg); width: 100%; max-width: 500px; border-radius: 12px; border: 1px solid var(--border); padding: 1.5rem; position: relative; }
+    .close-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
+
+    .idp-box { background: #0f172a; border-left: 4px solid var(--accent); padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+    .idp-val { font-size: 2rem; font-weight: bold; color: #f59e0b; }
+
+    .color-selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 1rem; }
+    .color-btn { height: 40px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; font-weight: bold; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+    .color-btn:hover { opacity: 0.9; transform: scale(1.05); }
+
+    /* SECCIÓN QUÍMICA VERDE */
+    .remediation-section { margin-top: 1.5rem; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 1rem; }
+    .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+    .action-card { background: #0f172a; border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; }
+    .action-card h5 { font-size: 0.85rem; margin-bottom: 0.25rem; color: #38bdf8; }
+    .action-card p { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; }
+    .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.75rem; width: auto; }
+
+    /* NUEVO DISEÑO REPORTE FINAL */
+    #final-report { display: none; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); padding: 2rem; margin-top: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
+    .report-header { text-align: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    .report-header h2 { color: var(--accent); font-size: 1.5rem; }
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .report-card { background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+    .report-card span { font-size: 0.8rem; color: #94a3b8; display: block; }
+    .report-card strong { font-size: 1.3rem; color: #f8fafc; }
+    
+    .report-table-container { overflow-x: auto; margin-bottom: 1.5rem; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+    .report-table th, .report-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+    .report-table th { background: #0f172a; color: #38bdf8; }
+    .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: bold; font-size: 0.75rem; display: inline-block; }
+    .badge-ok { background: rgba(22, 163, 74, 0.2); color: #4ade80; border: 1px solid #16a34a; }
+    .badge-error { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #dc2626; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Simulador Ecotoxicológico del Río Uruguay</h1>
+    <p>Diagnóstico por Diatomeas, El Niño y Química Verde</p>
+  </header>
+
+  <div class="container">
+
+    <!-- 1. INICIO -->
+    <div id="welcome-screen">
+      <h2>Misión Ambiental Río Uruguay</h2>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #94a3b8;">Asume el rol de investigador/a. Analiza el Índice de Diatomeas (IDP) de las estaciones, clasifica el río y aplica soluciones sustentables.</p>
+      
+      <div class="input-group">
+        <label for="team-name">Nombre del Equipo / Lancha Científica:</label>
+        <input type="text" id="team-name" placeholder="Ej: Exploradores del Yuquerí" value="Lancha Científica 1">
+      </div>
+      
+      <button class="btn" onclick="startMission()">Iniciar Misión</button>
+    </div>
+
+    <!-- 2. DASHBOARD -->
+    <div id="main-dashboard">
+      
+      <div class="status-bar">
+        <div class="stat-card">
+          <h3>Salud del Río</h3>
+          <p id="river-health">50%</p>
+        </div>
+        <div class="stat-card">
+          <h3>Puntos Química Verde</h3>
+          <p id="green-points">0</p>
+        </div>
+        <div class="stat-card">
+          <h3>Estaciones Evaluadas</h3>
+          <p id="evaluated-count">0 / 10</p>
+        </div>
+      </div>
+
+      <div class="layout-grid">
+        <!-- MAPA SVG -->
+        <div class="map-container">
+          <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem;">Mapa del Río Uruguay (Tramo Concordia - 45 km)</h3>
+          
+          <svg class="svg-map" viewBox="0 0 300 500">
+            <!-- Río Uruguay (Línea sinuosa) -->
+            <path d="M 180,20 Q 170,80 160,130 T 150,230 T 130,330 T 150,480" fill="none" stroke="#0284c7" stroke-width="35" opacity="0.6"/>
+            <path d="M 180,20 Q 170,80 160,130 T 150,230 T 130,330 T 150,480" fill="none" stroke="#38bdf8" stroke-width="12" opacity="0.8"/>
+            
+            <!-- Estaciones (Estrellas grises por defecto) -->
+            <g transform="translate(185, 40)" onclick="openStation(0)"><polygon class="station-star" id="star-0" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">1. TA</text></g>
+            <g transform="translate(165, 100)" onclick="openStation(1)"><polygon class="station-star" id="star-1" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">2. LB</text></g>
+            <g transform="translate(160, 140)" onclick="openStation(2)"><polygon class="station-star" id="star-2" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">3. SC</text></g>
+            <g transform="translate(155, 180)" onclick="openStation(3)"><polygon class="station-star" id="star-3" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">4. NB</text></g>
+            <g transform="translate(150, 220)" onclick="openStation(4)"><polygon class="station-star" id="star-4" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">5. MC</text></g>
+            <g transform="translate(142, 260)" onclick="openStation(5)"><polygon class="station-star" id="star-5" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">6. LS</text></g>
+            <g transform="translate(135, 300)" onclick="openStation(6)"><polygon class="station-star" id="star-6" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">7. LV</text></g>
+            <g transform="translate(125, 340)" onclick="openStation(7)"><polygon class="station-star" id="star-7" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">8. YCh</text></g>
+            <g transform="translate(118, 380)" onclick="openStation(8)"><polygon class="station-star" id="star-8" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">9. BL</text></g>
+            <g transform="translate(148, 450)" onclick="openStation(9)"><polygon class="station-star" id="star-9" points="0,-8 2,-2 8,-2 3,1 5,7 0,3 -5,7 -3,1 -8,-2 -2,-2" fill="#94a3b8" /><text x="12" y="3" fill="white" font-size="9" font-weight="bold">10. PY</text></g>
+          </svg>
+        </div>
+
+        <!-- LEYENDA Y CONTROL -->
+        <div>
+          <div class="legend-card">
+            <h4>Escala por IDP (Diatomeas)</h4>
+            <div class="legend-item"><div><span class="color-box" style="background:#2563eb;"></span>0.0 - 0.5</div><span style="color:#60a5fa;">Muy buena</span></div>
+            <div class="legend-item"><div><span class="color-box" style="background:#16a34a;"></span>>0.5 - 1.5</div><span style="color:#4ade80;">Buena</span></div>
+            <div class="legend-item"><div><span class="color-box" style="background:#facc15;"></span>>1.5 - 2.0</div><span style="color:#fde047;">Aceptable</span></div>
+            <div class="legend-item"><div><span class="color-box" style="background:#ea580c;"></span>>2.0 - 3.0</div><span style="color:#fb923c;">Mala</span></div>
+            <div class="legend-item"><div><span class="color-box" style="background:#dc2626;"></span>>3.0 - 4.0</div><span style="color:#f87171;">Muy mala</span></div>
+          </div>
+
+          <button class="btn" style="margin-top: 1rem; background: #22c55e;" onclick="finishMission()">Finalizar Misión</button>
+        </div>
+      </div>
+
+      <!-- REMEDIACIÓN Y QUÍMICA VERDE -->
+      <div class="remediation-section">
+        <h3>Soluciones de Química Verde y Remediación</h3>
+        <p style="font-size: 0.8rem; color: #94a3b8;">Aplica intervenciones ecológicas para mejorar la salud del río.</p>
+        
+        <div class="action-grid">
+          <div class="action-card">
+            <h5>Humedales Fitorremediadores</h5>
+            <p>Instalar <i>Typha latifolia</i> para absorber excesos de amonio y fósforo.</p>
+            <button class="btn btn-sm" onclick="applySolution(0)">Aplicar (+15% Salud)</button>
+          </div>
+          <div class="action-card">
+            <h5>Sustitución de Plaguicidas</h5>
+            <p>Reemplazar organoclorados por bioplaguicidas biodegradables en agricultura.</p>
+            <button class="btn btn-sm" onclick="applySolution(1)">Aplicar (+10% Salud)</button>
+          </div>
+          <div class="action-card">
+            <h5>Analítica Verde (SPME)</h5>
+            <p>Estandarizar microextracción sin uso de solventes clorados en laboratorio.</p>
+            <button class="btn btn-sm" onclick="applySolution(2)">Aplicar (+20 Pts QV)</button>
+          </div>
+          <div class="action-card">
+            <h5>Franjas de Vegetación</h5>
+            <p>Crear amortiguadores ribereños para frenar escorrentías agrícolas.</p>
+            <button class="btn btn-sm" onclick="applySolution(3)">Aplicar (+10% Salud)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTE FINAL ESTILIZADO -->
+      <div id="final-report">
+        <div class="report-header">
+          <h2>Reporte Oficial de Misión Ecotoxicológica</h2>
+          <p id="report-team-subtitle" style="font-size: 0.9rem; color: #94a3b8; margin-top: 0.25rem;"></p>
+        </div>
+
+        <div class="report-grid">
+          <div class="report-card">
+            <span>Salud Final del Río</span>
+            <strong id="rep-health" style="color: #4ade80;">0%</strong>
+          </div>
+          <div class="report-card">
+            <span>Puntos Química Verde</span>
+            <strong id="rep-points" style="color: #38bdf8;">0 pts</strong>
+          </div>
+          <div class="report-card">
+            <span>Aciertos Diagnósticos</span>
+            <strong id="rep-score" style="color: #f59e0b;">0 / 10</strong>
+          </div>
+        </div>
+
+        <h4 style="margin-bottom: 0.75rem; font-size: 1rem; color: #e2e8f0;">Desglose por Estación de Monitoreo:</h4>
+        <div class="report-table-container">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Estación</th>
+                <th>IDP Real</th>
+                <th>Tu Diagnóstico</th>
+                <th>Resultado</th>
+              </tr>
+            </thead>
+            <tbody id="report-table-body">
+              <!-- Se llena por JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <button class="btn" style="background: #2563eb;" onclick="copyReportAsText()">Copiar Informe para Docente</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL DE EVALUACIÓN DE ESTACIÓN -->
+  <div class="modal" id="station-modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+      
+      <h3 id="modal-title">Estación</h3>
+      <p id="modal-desc" style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;"></p>
+      
+      <div class="idp-box">
+        <div style="font-size: 0.8rem; color: #94a3b8;">Índice IDP (Bioindicador Diatomeas):</div>
+        <div class="idp-val" id="modal-idp">0.0</div>
+        <div style="font-size: 0.75rem; color: #cbd5e1; margin-top: 0.25rem;" id="modal-species">Especie dominante: -</div>
+      </div>
+
+      <p style="font-size: 0.85rem; font-weight: bold; margin-top: 1rem;">Basándote en el valor IDP, asigna la categoría y color a esta estación:</p>
+
+      <div class="color-selector">
+        <button class="color-btn" style="background:#2563eb;" onclick="classifyStation('Muy Buena', '#2563eb')">Muy Buena</button>
+        <button class="color-btn" style="background:#16a34a;" onclick="classifyStation('Buena', '#16a34a')">Buena</button>
+        <button class="color-btn" style="background:#facc15; color:#000;" onclick="classifyStation('Aceptable', '#facc15')">Aceptable</button>
+        <button class="color-btn" style="background:#ea580c;" onclick="classifyStation('Mala', '#ea580c')">Mala</button>
+        <button class="color-btn" style="background:#dc2626;" onclick="classifyStation('Muy Mala', '#dc2626')">Muy Mala</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const stations = [
+      { name: "1. Tortuga Alegre (TA)", desc: "Referencia aguas abajo de Salto Grande.", idp: 0.8, sp: "Planothidium frequentissimum", correctColor: "Buena" },
+      { name: "2. La Bianca (LB)", desc: "Zona urbana norte de Concordia.", idp: 1.2, sp: "Gomphonema parvulum", correctColor: "Buena" },
+      { name: "3. San Carlos (SC)", desc: "Toma de agua potable municipal.", idp: 1.8, sp: "Navicula cryptocephala", correctColor: "Aceptable" },
+      { name: "4. Nebel (NB)", desc: "Balneario urbano recreativo.", idp: 1.9, sp: "Nitzschia amphibia", correctColor: "Aceptable" },
+      { name: "5. Manzores y Caballada (MC)", desc: "Descarga efluentes urbanos e industriales.", idp: 2.8, sp: "Nitzschia palea", correctColor: "Mala" },
+      { name: "6. Los Sauces (LS)", desc: "Balneario de alta concurrencia.", idp: 1.7, sp: "Eunotia formica", correctColor: "Aceptable" },
+      { name: "7. La Verde (LV)", desc: "Vertido cloacal e industrial directo.", idp: 3.6, sp: "Nitzschia palea (Polisaprobia)", correctColor: "Muy Mala" },
+      { name: "8. Yuquerí Chico (YCh)", desc: "Desembocadura con escorrentía agrícola.", idp: 2.4, sp: "Cyclotella meneghiniana", correctColor: "Mala" },
+      { name: "9. Benito Legerén (BL)", desc: "Zona industrial frigorífica.", idp: 2.9, sp: "Gomphonema pseudoaugmentur", correctColor: "Mala" },
+      { name: "10. Puerto Yeruá (PY)", desc: "Zona sur de autodepuración fluvial.", idp: 1.1, sp: "Achnanthidium minutissimum", correctColor: "Buena" }
+    ];
+
+    let currentStationIndex = null;
+    let teamName = "";
+    let riverHealth = 50;
+    let greenPoints = 0;
+    let evaluatedCount = 0;
+    let userEvaluations = Array(10).fill(null);
+    let appliedSolutions = [false, false, false, false];
+
+    function startMission() {
+      const input = document.getElementById("team-name").value.trim();
+      if (!input) return alert("Por favor, ingresa el nombre de tu equipo.");
+      teamName = input;
+      document.getElementById("welcome-screen").style.display = "none";
+      document.getElementById("main-dashboard").style.display = "block";
+    }
+
+    function openStation(index) {
+      currentStationIndex = index;
+      const st = stations[index];
+      document.getElementById("modal-title").innerText = st.name;
+      document.getElementById("modal-desc").innerText = st.desc;
+      document.getElementById("modal-idp").innerText = st.idp.toFixed(1);
+      document.getElementById("modal-species").innerText = "Especie dominante: " + st.sp;
+      document.getElementById("station-modal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("station-modal").style.display = "none";
+    }
+
+    function classifyStation(selectedColorName, colorHex) {
+      const st = stations[currentStationIndex];
+      const star = document.getElementById(`star-${currentStationIndex}`);
+      star.setAttribute("fill", colorHex);
+
+      const isFirstTime = userEvaluations[currentStationIndex] === null;
+      const isCorrect = selectedColorName === st.correctColor;
+
+      userEvaluations[currentStationIndex] = {
+        selected: selectedColorName,
+        correct: st.correctColor,
+        isCorrect: isCorrect
+      };
+
+      if (isFirstTime) {
+        evaluatedCount++;
+        document.getElementById("evaluated-count").innerText = `${evaluatedCount} / 10`;
+        if (isCorrect) {
+          riverHealth = Math.min(100, riverHealth + 5);
+          greenPoints += 10;
+        } else {
+          riverHealth = Math.max(0, riverHealth - 3);
+        }
+        updateStats();
+      }
+
+      closeModal();
+    }
+
+    function applySolution(index) {
+      if (appliedSolutions[index]) return alert("Esta solución ya fue aplicada.");
+      appliedSolutions[index] = true;
+
+      if (index === 0) riverHealth = Math.min(100, riverHealth + 15);
+      if (index === 1) riverHealth = Math.min(100, riverHealth + 10);
+      if (index === 2) greenPoints += 20;
+      if (index === 3) riverHealth = Math.min(100, riverHealth + 10);
+
+      updateStats();
+      alert("¡Solución de Química Verde implementada con éxito!");
+    }
+
+    function updateStats() {
+      document.getElementById("river-health").innerText = riverHealth + "%";
+      document.getElementById("green-points").innerText = greenPoints;
+    }
+
+    function finishMission() {
+      if (evaluatedCount < 10) {
+        if (!confirm("Aún no has diagnosticado las 10 estaciones. ¿Deseas finalizar de todos modos?")) return;
+      }
+
+      let correctCount = userEvaluations.filter(e => e && e.isCorrect).length;
+
+      // Rellenar tarjetas visuales del reporte
+      document.getElementById("report-team-subtitle").innerText = `Equipo / Lancha: ${teamName}`;
+      document.getElementById("rep-health").innerText = riverHealth + "%";
+      document.getElementById("rep-points").innerText = greenPoints + " pts";
+      document.getElementById("rep-score").innerText = `${correctCount} / 10`;
+
+      // Rellenar tabla detallada
+      let tbody = document.getElementById("report-table-body");
+      tbody.innerHTML = "";
+
+      stations.forEach((st, i) => {
+        const ev = userEvaluations[i];
+        let tr = document.createElement("tr");
+        
+        let selText = ev ? ev.selected : "Sin evaluar";
+        let badgeHtml = ev 
+          ? (ev.isCorrect ? '<span class="badge badge-ok">CORRECTO</span>' : '<span class="badge badge-error">INCORRECTO</span>')
+          : '<span style="color:#94a3b8;">-</span>';
+
+        tr.innerHTML = `
+          <td><strong>${st.name}</strong></td>
+          <td>IDP: ${st.idp.toFixed(1)} (${st.correctColor})</td>
+          <td>${selText}</td>
+          <td>${badgeHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("final-report").style.display = "block";
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+
+    function copyReportAsText() {
+      let correctCount = userEvaluations.filter(e => e && e.isCorrect).length;
+      let text = `=== INFORME DE MONITOREO ECOTOXICOLÓGICO RÍO URUGUAY ===\n`;
+      text += `Equipo: ${teamName}\n`;
+      text += `Salud del Río: ${riverHealth}%\n`;
+      text += `Puntos Química Verde: ${greenPoints}\n`;
+      text += `Aciertos Diagnósticos: ${correctCount} / 10\n\n`;
+      text += `DETALLE:\n`;
+
+      stations.forEach((st, i) => {
+        const ev = userEvaluations[i];
+        if (ev) {
+          text += `- ${st.name}: Tu elección (${ev.selected}) | Esperado (${st.correctColor}) -> [${ev.isCorrect ? 'CORRECTO' : 'INCORRECTO'}]\n`;
+        } else {
+          text += `- ${st.name}: Sin evaluar\n`;
+        }
+      });
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert("¡Informe copiado al portapapeles listo para entregar!");
+      });
+    }
+  </script>
+</body>
+</html>
